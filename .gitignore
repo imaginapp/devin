@@ -3,3 +3,5 @@ build/
 tmp/
 
 .DS_STORE
+k8s
+Makefile
