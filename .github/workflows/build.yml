@@ -44,11 +44,6 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
-      - name: Configure git for private modules
-        env:
-          TOKEN: ${{ secrets.ACCESS_TOKEN }}
-        run: git config --global url."https://${{ github.actor }}:${TOKEN}@github.com".insteadOf "https://github.com"
-
       - name: Vendor go mods
         run: go mod vendor
 
