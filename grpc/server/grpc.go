@@ -6,6 +6,10 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
+
+	// Installing the gzip encoding registers it as an available compressor.
+	// gRPC will automatically negotiate and use gzip if the client supports it.
+	_ "google.golang.org/grpc/encoding/gzip"
 )
 
 type Handler interface {
