@@ -1,9 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
+	"time"
 
 	"github.com/imaginapp/devin"
 	grpcserver "github.com/imaginapp/devin/grpc/server"
@@ -14,6 +18,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/sync/errgroup"
 )
 
 const defaultGrpcPort = "50051"
@@ -53,22 +58,21 @@ func main() {
 		Invites: inviteClient,
 	}
 
-	grpcConfig := grpcserver.ServerConfig{
-		Address:        fmt.Sprintf(":%s", getEnvOrDefaultString("APP_PORT", defaultGrpcPort)),
-		MaxRecvMsgSize: 1024 * 1024,
-		MaxSendMsgSize: 1024 * 1024,
-	}
-	gs := grpcserver.New(
-		grpcConfig,
-		ghandler.New(services, withReflection),
-		interceptor.RequestID(),
-		interceptor.Logging(log.Logger),
-	)
+	errGrp, egCtx := errgroup.WithContext(context.Background())
 
-	log.Info().Str("address", grpcConfig.Address).Msg("staring grpc server")
-	if err := gs.Start(); err != nil {
-		log.Fatal().Err(err).Msg("failed to start grpc server")
+	// Set up signal handling for graceful shutdown
+	ctx, stop := signal.NotifyContext(egCtx, os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	// start the gRPC server
+	gh := ghandler.New(services, withReflection)
+	startGRPCServer(ctx, errGrp, gh)
+
+	// keep the application running while servers are running
+	if err := errGrp.Wait(); err != nil {
+		log.Error().Err(err).Msg("error during shutdown")
 	}
+	log.Info().Msg("graceful shutdown completed")
 }
 
 func getEnvOrDefaultString(envKey string, defaultValue string) string {
@@ -85,4 +89,51 @@ func getEnvOrDefaultInt(envKey string, defaultValue int) int {
 		}
 	}
 	return defaultValue
+}
+
+func startGRPCServer(ctx context.Context, errGrp *errgroup.Group, handler *ghandler.Handler) {
+	grpcConfig := grpcserver.ServerConfig{
+		Address:        fmt.Sprintf(":%s", getEnvOrDefaultString("APP_PORT", defaultGrpcPort)),
+		MaxRecvMsgSize: 1024 * 1024,
+		MaxSendMsgSize: 1024 * 1024,
+	}
+	gs := grpcserver.New(
+		grpcConfig,
+		handler,
+		interceptor.RequestID(),
+		interceptor.Logging(log.Logger),
+	)
+
+	log.Info().Str("address", grpcConfig.Address).Msg("starting grpc server")
+	errGrp.Go(func() error {
+		if err := gs.Start(); err != nil {
+			log.Fatal().Err(err).Msg("failed to start grpc server")
+		}
+		return nil
+	})
+
+	shutdown := func(ctx context.Context) error {
+		gs.Close()
+		return nil
+	}
+
+	gracefulShutdown(ctx, errGrp, shutdown)
+}
+
+func gracefulShutdown(ctx context.Context, errGrp *errgroup.Group, shutdownFunc func(ctx context.Context) error) {
+	errGrp.Go(func() error {
+		<-ctx.Done() // Wait for cancellation signal
+		log.Info().Msg("shutting down server")
+
+		// Create a timeout context for shutdown
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		if err := shutdownFunc(shutdownCtx); err != nil {
+			return fmt.Errorf("server shutdown error: %w", err)
+		}
+
+		log.Info().Msg("server shutdown complete")
+		return nil
+	})
 }
