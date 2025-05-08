@@ -3,7 +3,7 @@ package devin
 import (
 	"time"
 
-	"golang.org/x/exp/rand"
+	"math/rand"
 )
 
 const OpenInviteCodeGroupID = "open"
