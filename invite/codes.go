@@ -29,7 +29,7 @@ func (c *Client) generateCode(number int) (string, error) {
 	return code, nil
 }
 
-func IsAlphanumeric(s string) bool {
+func isAlphanumeric(s string) bool {
 	for _, r := range s {
 		if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
 			return false
