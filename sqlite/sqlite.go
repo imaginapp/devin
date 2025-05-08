@@ -28,7 +28,7 @@ func (c *Client) Close() error {
 }
 
 func New(dbPath string) (*Client, error) {
-	log.Info().Str("dbPath", dbPath).Msg("connecting to sqlite db")
+	log.Debug().Str("dbPath", dbPath).Msg("connecting to sqlite db")
 	db, err := sql.Open("libsql", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open db %s: %w", dbPath, err)
