@@ -9,6 +9,9 @@ import (
 )
 
 func (h *Handler) ValidateInviteCode(ctx context.Context, in *service.ValidateInviteCodeRequest) (*service.ValidateInviteCodeResponse, error) {
+	if err := checkAPIKey(ctx); err != nil {
+		return nil, err
+	}
 	logger := zerolog.Ctx(ctx)
 	logger.Debug().Str("code", in.Code).Msg("CheckInviteCode")
 	devin.RandomDelay()
