@@ -8,7 +8,6 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// CheckInviteCode implements griffin.GriffinAPIServer.
 func (h *Handler) ValidateInviteCode(ctx context.Context, in *service.ValidateInviteCodeRequest) (*service.ValidateInviteCodeResponse, error) {
 	logger := zerolog.Ctx(ctx)
 	logger.Debug().Str("code", in.Code).Msg("CheckInviteCode")
