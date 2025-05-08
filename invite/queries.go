@@ -12,6 +12,9 @@ import (
 )
 
 func (c *Client) IsCodeValid(ctx context.Context, code string) bool {
+	if len(code) != codeLength || !IsAlphanumeric(code) {
+		return false
+	}
 	inviteData, err := c.getCode(ctx, code)
 	if err != nil {
 		return false
