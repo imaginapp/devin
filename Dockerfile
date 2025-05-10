@@ -11,7 +11,7 @@ WORKDIR /build
 ENV CGO_ENABLED=0
 ENV GOARCH=$TARGETARCH
 ENV GOOS=$TARGETOS
-RUN go build -mod=vendor -ldflags="-s -w" -o devin ./cmd
+RUN go build -mod=vendor -ldflags="-s -w" -o devin ./cmd/server
 
 # copy to scratch
 FROM scratch
