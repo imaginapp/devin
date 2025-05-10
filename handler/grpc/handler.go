@@ -5,9 +5,12 @@ import (
 	"os"
 
 	"github.com/imaginapp/devin"
+	"github.com/imaginapp/devin/grpc/server/auth"
 	"github.com/imaginapp/proto/go/gen/imagin/external/service/v1"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
 )
 
 type Handler struct {
@@ -31,6 +34,17 @@ func (h *Handler) GRPCHandler(s *grpc.Server) {
 	}
 }
 
-func (h *Handler) GetVersion(context.Context, *service.GetVersionRequest) (*service.GetVersionResponse, error) {
+func checkAPIKey(ctx context.Context) error {
+	if err := auth.CheckAPIKey(ctx); err != nil {
+		return status.Error(codes.Unauthenticated, err.Error())
+	}
+	return nil
+}
+
+func (h *Handler) GetVersion(ctx context.Context, _ *service.GetVersionRequest) (*service.GetVersionResponse, error) {
+	if err := checkAPIKey(ctx); err != nil {
+		return nil, err
+	}
+
 	return &service.GetVersionResponse{Id: os.Getenv("VERSION")}, nil
 }

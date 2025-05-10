@@ -29,6 +29,9 @@ type Server struct {
 }
 
 func (s *Server) Close() error {
+	if s.server != nil {
+		s.server.GracefulStop()
+	}
 	return nil
 }
 
