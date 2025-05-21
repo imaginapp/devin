@@ -10,10 +10,13 @@ import (
 	"time"
 
 	"github.com/imaginapp/devin"
+	"github.com/imaginapp/devin/cache"
 	grpcserver "github.com/imaginapp/devin/grpc/server"
 	"github.com/imaginapp/devin/grpc/server/interceptor"
 	ghandler "github.com/imaginapp/devin/handler/grpc"
 	"github.com/imaginapp/devin/invite"
+	"github.com/imaginapp/devin/lru"
+	"github.com/imaginapp/devin/redis"
 	"github.com/imaginapp/devin/sqlite"
 	"github.com/joho/godotenv"
 	"github.com/rs/zerolog"
@@ -37,6 +40,17 @@ func main() {
 			log.Fatal().Msg("error loading .env file")
 		}
 	}
+
+	// Setup cache for gRPC service
+	redisCacheClient, err := redis.NewFromEnv(0)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed start service")
+	}
+	lruClient, err := lru.New()
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed start service")
+	}
+	grpcCacheClient := cache.New(lruClient, redisCacheClient)
 
 	sqlPath := os.Getenv("DB_PATH")
 	dbToken := os.Getenv("DB_TOKEN")
@@ -66,6 +80,7 @@ func main() {
 
 	// start the gRPC server
 	gh := ghandler.New(services, withReflection)
+	gh.SetCache(grpcCacheClient)
 	startGRPCServer(ctx, errGrp, gh)
 
 	// keep the application running while servers are running
